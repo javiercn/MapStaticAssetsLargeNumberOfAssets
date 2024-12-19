@@ -41,8 +41,15 @@ You can do so by adding the following snippet to your project file:
 
 ```xml
 <PropertyGroup>
-  <DefaultItemExcludes>$(DefaultItemExcludes);FolderToExclude/**/*</DefaultItemExcludes>
+  <!-- Include here the files to exclude -->
+  <ExcludedAssetPatterns>wwwroot\lib\**</ExcludedAssetPatterns>
+  <DefaultItemExcludes>$(DefaultItemExcludes);$(ExcludedAssetPatterns)</DefaultItemExcludes>
 </PropertyGroup>
+
+<!-- Just for the elements to be shown in VS -->
+<ItemGroup>
+  <None Include="$(ExcludedAssetPatterns)" />
+</ItemGroup>
 ```
 
 With this, the folders will not be processed by static web assets and won't be taken into account. During development, static web assets still maps the wwwroot folder in the project, so you can still access the files in the excluded folders. That said, since those files are not processed, you need to add a call to `UseStaticFiles` to your app to serve them.
@@ -54,17 +61,6 @@ Assets that are processed by StaticWebAssets will be handled by MapStaticAssets 
 If you exclude a folder from processing, you may need to ensure that the files in that folder are copied to the output directory during publish. You can do so by adding the following snippet to your project file:
 
 ```xml
-<PropertyGroup>
-  <!-- Include here the files to exclude -->
-  <ExcludedAssetPatterns>wwwroot\lib\**</ExcludedAssetPatterns>
-  <DefaultItemExcludes>$(DefaultItemExcludes);$(ExcludedAssetPatterns)</DefaultItemExcludes>
-</PropertyGroup>
-
-<!-- Just for the elements to be shown in VS -->
-<ItemGroup>
-  <None Include="$(ExcludedAssetPatterns)" />
-</ItemGroup>
-
 <Target Name="AddExcludedFiles" BeforeTargets="GetCopyToPublishDirectoryItems">
   <ItemGroup>
     <ExcludedAsset Include="$(ExcludedAssetPatterns)" CopyToPublishDirectory="PreserveNewest" />
@@ -73,4 +69,35 @@ If you exclude a folder from processing, you may need to ensure that the files i
     <Output TaskParameter="AssignedFiles" ItemName="ContentWithTargetPath" />
   </AssignTargetPath>
 </Target>
+```
+
+## Add a call to UseStaticFiles in your Program.cs
+
+```diff
+using MapStaticAssetsLargeNumberOfAssets.Components;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+builder.Services.AddRazorComponents();
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
++app.UseStaticFiles();
+
+app.UseAntiforgery();
+
+app.MapStaticAssets();
+app.MapRazorComponents<App>();
+
+app.Run();
 ```
